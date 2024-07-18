@@ -82,7 +82,7 @@ def listCourses(wait_time: int) -> dict:
 
             print(f"INFO: PROCESSED PAGE #{page_counter}")
             page_counter += 1
-            break  # DEBUG
+            # break  # DEBUG
 
         with open("courses_details.csv", "w", newline="", encoding="utf-8") as file:
             writer = csv.writer(file)
@@ -119,7 +119,7 @@ account_name = input("Enter account first-name: ")
 
 if checkLogin(email, password, account_name, force=False):
     print("INFO: LOGGED IN SUCCESSFULLY!")
-    courses = listCourses(15)
+    courses = listCourses(20)
     print(courses)
     print("INFO: SAVED COURSE DETAILS!")
 else:
