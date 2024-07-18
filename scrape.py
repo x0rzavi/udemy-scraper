@@ -134,7 +134,7 @@ def listCourses(wait_time: int) -> dict:
 email = input("Enter email address: ")
 password = input("Enter password: ")
 account_name = input("Enter account first-name: ")
-wait_time = input("Enter wait time in seconds: ")
+wait_time = int(input("Enter wait time in seconds: "))
 
 if checkLogin(email, password, account_name, force=False):
     print("INFO: LOGGED IN SUCCESSFULLY!")

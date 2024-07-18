@@ -164,4 +164,5 @@ cython_debug/
 # Miscellaneous
 downloaded_files/
 saved_cookies/
+latest_logs/
 courses_details.csv
