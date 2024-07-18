@@ -28,7 +28,7 @@ def checkLogin(email: str, password: str, account_name: str, force: bool) -> boo
                 try:  # password less login
                     sb.get_element(passwordless_button_selector_1, timeout=30).click()
                     print(
-                        "WARNING: ENTER LOGIN CODE FROM EMAIL AND WAIT FOR AUTO CLICK!"
+                        "WARNING: ENTER LOGIN CODE FROM EMAIL AND WAIT 60s FOR AUTO CLICK!"
                     )
                     sb.wait(60)
                     sb.get_element(passwordless_button_selector_2, timeout=30).click()
@@ -40,6 +40,7 @@ def checkLogin(email: str, password: str, account_name: str, force: bool) -> boo
                 try:
                     sb.assert_text_visible(account_name)
                 except Exception:
+                    print("WARNING: LOGIN FAILED, WAITING 60s BEFORE RETYRING")
                     sb.wait(60)  # wait before retrying
                     continue
                 else:
@@ -55,6 +56,9 @@ def listCourses(wait_time: int) -> dict:
         overview_selector = "#tabs--1-tab-2"
         time_selector = "#tabs--1-content-2 > div > div > div > div > div > div.course-lead--course-stats--KXvqV.course-stats--course-stats--cATFA > div.course-stats--video-length--mzPnS > div.ud-heading-md"
         pagination_selector = "#tabs--1-content-0 > div > div.ud-text-xs.pagination--pagination-label--tgma-"
+        course_grid_selector = (
+            "#tabs--1-content-0 > div > div.my-courses__course-card-grid"
+        )
         sb.uc_open_with_reconnect(courses_url, 5)  # open url bypassing captcha
         sb.load_cookies("cookies.txt")
         sb.refresh()
@@ -83,7 +87,10 @@ def listCourses(wait_time: int) -> dict:
 
         for i in range(1, courses_num_pages + 1):
             sb.uc_open(f"{courses_url}?p={i}")
-            sb.wait(wait_time)
+            sb.get_element(
+                course_grid_selector,
+                timeout=30,
+            )
             soup = BeautifulSoup(sb.get_page_source(), "lxml")
             courses = soup.find_all("h3", attrs={"data-purpose": "course-title-url"})
 
