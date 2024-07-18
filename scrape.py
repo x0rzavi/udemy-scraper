@@ -82,7 +82,7 @@ def listCourses(wait_time: int) -> dict:
 
             print(f"INFO: PROCESSED PAGE #{page_counter}")
             page_counter += 1
-            # break  # DEBUG
+            break  # DEBUG
 
         with open("courses_details.csv", "w", newline="", encoding="utf-8") as file:
             writer = csv.writer(file)
@@ -99,10 +99,12 @@ def listCourses(wait_time: int) -> dict:
                     "div", class_=re.compile("video-length")
                 ).find(class_="ud-heading-md")
                 course_time = course_time_element.text.strip()
-                course_title_element = soup.find(
-                    "span", class_=re.compile("course-title")
+                course_title_element = soup.find("title")
+                course_title = (
+                    course_title_element.text.strip()
+                    .replace("Course: ", "")
+                    .replace(" | Udemy", "")
                 )
-                course_title = course_title_element.text.strip()
                 writer.writerow([course_title, course_time])
                 courses_details[course_title] = course_time
                 print(f"INFO: PROCESSED COURSE #{course_counter}")
@@ -117,7 +119,7 @@ account_name = input("Enter account first-name: ")
 
 if checkLogin(email, password, account_name, force=False):
     print("INFO: LOGGED IN SUCCESSFULLY!")
-    courses = listCourses(10)
+    courses = listCourses(15)
     print(courses)
     print("INFO: SAVED COURSE DETAILS!")
 else:
