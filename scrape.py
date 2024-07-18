@@ -23,19 +23,19 @@ def checkLogin(email: str, password: str, account_name: str, force: bool) -> boo
         except Exception:  # not logged in
             while True:
                 sb.uc_open_with_reconnect(login_url, 5)  # open url bypassing captcha
-                sb.get_element(login_selector).click()
+                sb.get_element(login_selector, timeout=30).click()
                 sb.type(login_selector, email)
                 try:  # password less login
-                    sb.get_element(passwordless_button_selector_1).click()
+                    sb.get_element(passwordless_button_selector_1, timeout=30).click()
                     print(
                         "WARNING: ENTER LOGIN CODE FROM EMAIL AND WAIT FOR AUTO CLICK!"
                     )
                     sb.wait(60)
-                    sb.get_element(passwordless_button_selector_2).click()
+                    sb.get_element(passwordless_button_selector_2, timeout=30).click()
                 except Exception:  # password based login
-                    sb.get_element(password_selector).click()
+                    sb.get_element(password_selector, timeout=30).click()
                     sb.type(password_selector, password)
-                    sb.get_element(passwordbased_button_selector).click()
+                    sb.get_element(passwordbased_button_selector, timeout=30).click()
 
                 try:
                     sb.assert_text_visible(account_name)
@@ -58,7 +58,7 @@ def listCourses(wait_time: int) -> dict:
         sb.uc_open_with_reconnect(courses_url, 5)  # open url bypassing captcha
         sb.load_cookies("cookies.txt")
         sb.refresh()
-        sb.get_element(pagination_selector)  # wait for selector
+        sb.get_element(pagination_selector, timeout=30)  # wait for selector
 
         soup = BeautifulSoup(sb.get_page_source(), "lxml")
         courses_num_details = soup.select("div[class*='pagination-label']")[
@@ -106,8 +106,8 @@ def listCourses(wait_time: int) -> dict:
                     print(f"INFO: SKIPPED COURSE #{course_counter} (EXISTING)")
                 else:
                     sb.uc_open(course)
-                    sb.get_element(overview_selector).click()
-                    sb.get_element(time_selector)  # wait for selector
+                    sb.get_element(overview_selector, timeout=30).click()
+                    sb.get_element(time_selector, timeout=30)  # wait for selector
                     soup = BeautifulSoup(sb.get_page_source(), "lxml")
                     course_time_element = soup.find(
                         "div", class_=re.compile("video-length")
