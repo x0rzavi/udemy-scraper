@@ -50,7 +50,7 @@ def checkLogin(email: str, password: str, account_name: str, force: bool) -> boo
             return True
 
 
-def listCourses(wait_time: int) -> dict:
+def listCourses() -> dict:
     with SB(uc=True, test=True, locale_code="en") as sb:
         courses_url = "https://www.udemy.com/home/my-courses/learning/"
         overview_selector = "#tabs--1-tab-2"
@@ -146,11 +146,10 @@ def listCourses(wait_time: int) -> dict:
 email = input("Enter email address: ")
 password = input("Enter password: ")
 account_name = input("Enter account first-name: ")
-wait_time = int(input("Enter wait time in seconds: "))
 
 if checkLogin(email, password, account_name, force=False):
     print("INFO: LOGGED IN SUCCESSFULLY!")
-    courses = listCourses(wait_time)
+    courses = listCourses()
     print(courses)
     print("INFO: SAVED COURSE DETAILS!")
 else:
