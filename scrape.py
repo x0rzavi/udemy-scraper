@@ -81,7 +81,7 @@ def listCourses(wait_time: int) -> dict:
                 courses_list.append(f"https://www.udemy.com{course_link}")
 
             print(f"INFO: PROCESSED PAGE #{page_counter}")
-            break  # DEBUG
+            # break  # DEBUG
 
         with open("courses_details.csv", "w", newline="", encoding="utf-8") as file:
             writer = csv.writer(file)

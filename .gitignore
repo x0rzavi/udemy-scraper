@@ -164,3 +164,4 @@ cython_debug/
 # Miscellaneous
 downloaded_files/
 saved_cookies/
+courses_details.csv
