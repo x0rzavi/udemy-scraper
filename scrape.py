@@ -110,11 +110,9 @@ def listCourses(wait_time: int) -> dict:
     return courses_details
 
 
-# PUT IN VALUES
-email = ""
-email = ""
-password = ""
-account_name = ""
+email = input("Enter email address: ")
+password = input("Enter password: ")
+account_name = input("Enter account first-name: ")
 
 if checkLogin(email, password, account_name, force=False):
     print("INFO: LOGGED IN SUCCESSFULLY!")
