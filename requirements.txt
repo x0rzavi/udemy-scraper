@@ -1,0 +1,3 @@
+seleniumbase
+beautifulsoup4
+lxml
