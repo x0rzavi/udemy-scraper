@@ -66,13 +66,13 @@ def listCourses(wait_time: int) -> dict:
         courses_num = courses_num_match.group(1)
         print(f"INFO: TOTAL COURSES: {courses_num}")
         courses_num_pages = math.ceil(int(courses_num) / 12)
+        page_counter = 1
 
         for i in range(1, courses_num_pages + 1):
             sb.uc_open(f"{courses_url}?p={i}")
             sb.wait(wait_time)
             soup = BeautifulSoup(sb.get_page_source(), "lxml")
             courses = soup.find_all("h3", attrs={"data-purpose": "course-title-url"})
-            page_counter = 1
             courses_list = []
 
             for h3 in courses:
@@ -81,6 +81,7 @@ def listCourses(wait_time: int) -> dict:
                 courses_list.append(f"https://www.udemy.com{course_link}")
 
             print(f"INFO: PROCESSED PAGE #{page_counter}")
+            page_counter += 1
             # break  # DEBUG
 
         with open("courses_details.csv", "w", newline="", encoding="utf-8") as file:
