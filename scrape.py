@@ -69,6 +69,16 @@ def listCourses(wait_time: int) -> dict:
         page_counter = 1
         courses_list = []
 
+        existing_courses = set()
+        try:
+            with open("courses_details.csv", "r", newline="", encoding="utf-8") as file:
+                reader = csv.reader(file)
+                next(reader, None)
+                for row in reader:
+                    existing_courses.add(row[0])
+        except FileNotFoundError:
+            pass
+
         for i in range(1, courses_num_pages + 1):
             sb.uc_open(f"{courses_url}?p={i}")
             sb.wait(wait_time)
@@ -84,9 +94,8 @@ def listCourses(wait_time: int) -> dict:
             page_counter += 1
             # break  # DEBUG
 
-        with open("courses_details.csv", "w", newline="", encoding="utf-8") as file:
+        with open("courses_details.csv", "a", newline="", encoding="utf-8") as file:
             writer = csv.writer(file)
-            writer.writerow(["Course Title", "Course Time"])
             course_counter = 1
             courses_details = {}
 
@@ -98,16 +107,25 @@ def listCourses(wait_time: int) -> dict:
                 course_time_element = soup.find(
                     "div", class_=re.compile("video-length")
                 ).find(class_="ud-heading-md")
-                course_time = course_time_element.text.strip()
+                course_time = (
+                    course_time_element.text.strip() if course_time_element else "N/A"
+                )
                 course_title_element = soup.find("title")
                 course_title = (
                     course_title_element.text.strip()
                     .replace("Course: ", "")
                     .replace(" | Udemy", "")
+                    if course_title_element
+                    else "N/A"
                 )
-                writer.writerow([course_title, course_time])
-                courses_details[course_title] = course_time
-                print(f"INFO: PROCESSED COURSE #{course_counter}")
+
+                if course_title not in existing_courses:
+                    if course_counter == 1 and not existing_courses:
+                        writer.writerow(["Course Title", "Course Time"])
+                    writer.writerow([course_title, course_time])
+                    print(f"INFO: PROCESSED COURSE #{course_counter} (NEW)")
+                else:
+                    print(f"INFO: SKIPPED COURSE #{course_counter} (EXISTING)")
                 course_counter += 1
 
     return courses_details
