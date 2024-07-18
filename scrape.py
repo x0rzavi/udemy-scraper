@@ -53,10 +53,12 @@ def listCourses(wait_time: int) -> dict:
     with SB(uc=True, test=True, locale_code="en") as sb:
         courses_url = "https://www.udemy.com/home/my-courses/learning/"
         overview_selector = "#tabs--1-tab-2"
+        time_selector = "#tabs--1-content-2 > div > div > div > div > div > div.course-lead--course-stats--KXvqV.course-stats--course-stats--cATFA > div.course-stats--video-length--mzPnS > div.ud-heading-md"
+        pagination_selector = "#tabs--1-content-0 > div > div.ud-text-xs.pagination--pagination-label--tgma-"
         sb.uc_open_with_reconnect(courses_url, 5)  # open url bypassing captcha
         sb.load_cookies("cookies.txt")
         sb.refresh()
-        sb.wait(wait_time)
+        sb.get_element(pagination_selector)  # wait for selector
 
         soup = BeautifulSoup(sb.get_page_source(), "lxml")
         courses_num_details = soup.select("div[class*='pagination-label']")[
@@ -100,32 +102,35 @@ def listCourses(wait_time: int) -> dict:
             courses_details = {}
 
             for course in courses_list:
-                sb.uc_open(course)
-                sb.wait(wait_time)
-                sb.click(overview_selector)
-                soup = BeautifulSoup(sb.get_page_source(), "lxml")
-                course_time_element = soup.find(
-                    "div", class_=re.compile("video-length")
-                ).find(class_="ud-heading-md")
-                course_time = (
-                    course_time_element.text.strip() if course_time_element else "N/A"
-                )
-                course_title_element = soup.find("title")
-                course_title = (
-                    course_title_element.text.strip()
-                    .replace("Course: ", "")
-                    .replace(" | Udemy", "")
-                    if course_title_element
-                    else "N/A"
-                )
-
-                if course_title not in existing_courses:
-                    if course_counter == 1 and not existing_courses:
-                        writer.writerow(["Course Title", "Course Time"])
-                    writer.writerow([course_title, course_time])
-                    print(f"INFO: PROCESSED COURSE #{course_counter} (NEW)")
-                else:
+                if course in existing_courses:
                     print(f"INFO: SKIPPED COURSE #{course_counter} (EXISTING)")
+                else:
+                    sb.uc_open(course)
+                    sb.get_element(overview_selector).click()
+                    sb.get_element(time_selector)  # wait for selector
+                    soup = BeautifulSoup(sb.get_page_source(), "lxml")
+                    course_time_element = soup.find(
+                        "div", class_=re.compile("video-length")
+                    ).find(class_="ud-heading-md")
+                    course_time = (
+                        course_time_element.text.strip()
+                        if course_time_element
+                        else "N/A"
+                    )
+                    course_title_element = soup.find("title")
+                    course_title = (
+                        course_title_element.text.strip()
+                        .replace("Course: ", "")
+                        .replace(" | Udemy", "")
+                        if course_title_element
+                        else "N/A"
+                    )
+
+                    if course_counter == 1 and not existing_courses:
+                        writer.writerow(["Course Link", "Course Title", "Course Time"])
+                    writer.writerow([course, course_title, course_time])
+                    courses_details[course_title] = course_time
+                    print(f"INFO: PROCESSED COURSE #{course_counter} (NEW)")
                 course_counter += 1
 
     return courses_details
