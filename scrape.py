@@ -67,13 +67,13 @@ def listCourses(wait_time: int) -> dict:
         print(f"INFO: TOTAL COURSES: {courses_num}")
         courses_num_pages = math.ceil(int(courses_num) / 12)
         page_counter = 1
+        courses_list = []
 
         for i in range(1, courses_num_pages + 1):
             sb.uc_open(f"{courses_url}?p={i}")
             sb.wait(wait_time)
             soup = BeautifulSoup(sb.get_page_source(), "lxml")
             courses = soup.find_all("h3", attrs={"data-purpose": "course-title-url"})
-            courses_list = []
 
             for h3 in courses:
                 course = h3.find("a")
@@ -117,7 +117,8 @@ account_name = input("Enter account first-name: ")
 
 if checkLogin(email, password, account_name, force=False):
     print("INFO: LOGGED IN SUCCESSFULLY!")
-    courses = listCourses(5)
+    courses = listCourses(10)
+    print(courses)
     print("INFO: SAVED COURSE DETAILS!")
 else:
     print("ERROR: LOGIN UNSUCCESSFUL!")
