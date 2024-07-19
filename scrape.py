@@ -140,7 +140,43 @@ def listCourses() -> dict:
                     print(f"INFO: PROCESSED COURSE #{course_counter} (NEW)")
                 course_counter += 1
 
+            print("INFO: SAVED COURSE DETAILS!")
+
     return courses_details
+
+
+def convertToMinutes(time_str: str) -> int:
+    total_minutes = 0
+    hours_match = re.search(r"(\d+(?:\.\d+)?)\s*hours?", time_str)
+    minutes_match = re.search(r"(\d+)\s*mins?", time_str)
+
+    if hours_match:
+        total_minutes += float(hours_match.group(1)) * 60
+    if minutes_match:
+        total_minutes += int(minutes_match.group(1))
+    return total_minutes
+
+
+def formatCsv():
+    input_file_path = "courses_details.csv"
+    output_file_path = "courses_details_formatted.csv"
+    time_column_index = 2
+
+    with open(input_file_path, "r", newline="", encoding="utf-8") as input_file, open(
+        output_file_path, "w", newline="", encoding="utf-8"
+    ) as output_file:
+        reader = csv.reader(input_file)
+        writer = csv.writer(output_file)
+        headers = next(reader)
+        writer.writerow(headers)
+
+        for row in reader:
+            if not any("questions" in column.lower() for column in row):
+                time_str = row[time_column_index]
+                row[time_column_index] = convertToMinutes(time_str)
+                writer.writerow(row)
+
+        print("INFO: FORMATTED COURSE DETAILS!")
 
 
 email = input("Enter email address: ")
@@ -151,6 +187,7 @@ if checkLogin(email, password, account_name, force=False):
     print("INFO: LOGGED IN SUCCESSFULLY!")
     courses = listCourses()
     print(courses)
-    print("INFO: SAVED COURSE DETAILS!")
+    formatCsv()
 else:
     print("ERROR: LOGIN UNSUCCESSFUL!")
+
