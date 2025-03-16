@@ -192,8 +192,7 @@ class UdemyScraper:
         """
         courses_list = []
 
-        # for page in range(1, pages_count + 1):
-        for page in range(1, 2):
+        for page in range(1, pages_count + 1):
             sb.uc_open(f"{courses_url}?p={page}")
             sb.get_element(course_grid_selector, timeout=15)
 
