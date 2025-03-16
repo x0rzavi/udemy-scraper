@@ -192,8 +192,7 @@ class UdemyScraper:
         """
         courses_list = []
 
-        # for page in range(1, pages_count + 1):
-        for page in range(1, 2):
+        for page in range(1, pages_count + 1):
             sb.uc_open(f"{courses_url}?p={page}")
             sb.get_element(course_grid_selector, timeout=15)
 
@@ -384,8 +383,8 @@ def main():
         # email = input("Enter email address: ")
         # password = input("Enter password: ")
         # account_name = input("Enter account first-name: ")
-        email = "***REMOVED***"
-        password = "***REMOVED***"
+        email = "x0rzavi@gmail.com"
+        password = "Whole-Outpost-Unable-Grunge5-Hemstitch-Nautical"
         account_name = "Avishek"
 
         scraper = UdemyScraper(email, password, account_name)
