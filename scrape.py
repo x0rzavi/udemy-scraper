@@ -380,12 +380,16 @@ def main():
     """Main entry point for the script."""
     try:
         print("=== Udemy Course Scraper ===")
-        # email = input("Enter email address: ")
-        # password = input("Enter password: ")
-        # account_name = input("Enter account first-name: ")
-        email = "x0rzavi@gmail.com"
-        password = "Whole-Outpost-Unable-Grunge5-Hemstitch-Nautical"
-        account_name = "Avishek"
+        email = os.getenv("UDEMY_EMAIL")
+        password = os.getenv("UDEMY_PASSWORD")
+        account_name = os.getenv("UDEMY_ACCOUNT_NAME")
+
+        if not all([email, password, account_name]):
+            print("ERROR: Missing required environment variables:")
+            print("  - UDEMY_EMAIL")
+            print("  - UDEMY_PASSWORD")
+            print("  - UDEMY_ACCOUNT_NAME")
+            sys.exit(1)
 
         scraper = UdemyScraper(email, password, account_name)
 
