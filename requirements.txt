@@ -1,3 +1,4 @@
 seleniumbase
 beautifulsoup4
 lxml
+python-dotenv
