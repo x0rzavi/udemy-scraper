@@ -1,4 +1,3 @@
-import csv
 import hashlib
 import json
 import logging
@@ -11,6 +10,7 @@ from typing import Dict, List, Tuple
 
 from bs4 import BeautifulSoup
 from dotenv import load_dotenv
+from openpyxl import Workbook, load_workbook
 from seleniumbase import SB
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
@@ -25,6 +25,7 @@ class UdemyScraper:
     RETRY_WAIT_SECONDS = 60
     MAX_LOGIN_ATTEMPTS = 3
     PASSWORDLESS_WAIT_SECONDS = 60
+    SAVE_FREQUENCY = 10  # Save Excel after every N courses
 
     def __init__(self, email: str, password: str, account_name: str):
         """Initialize the scraper with user credentials.
@@ -48,9 +49,7 @@ class UdemyScraper:
         self.cache_dir.mkdir(exist_ok=True)
         self.course_urls_cache = self.cache_dir / "course_urls_cache.json"
         self.ignored_courses_file = self.cache_dir / "ignored_courses.txt"
-
-        self.courses_file = Path("courses_details.csv")
-        self.formatted_courses_file = Path("courses_details_formatted.csv")
+        self.courses_xlsx_file = Path("udemy_courses.xlsx")
 
     def login(self, force: bool = False) -> bool:
         """Authenticate with Udemy.
@@ -84,7 +83,7 @@ class UdemyScraper:
                 else:
                     raise ValueError("FORCE LOGIN OR NO COOKIES AVAILABLE")
             except (ValueError, AssertionError) as e:  # not logged in or forced login
-                self.logger.debug(f"Cookie login failed: {e}")
+                self.logger.debug(f"COOKIE LOGIN FAILED: {e}")
                 return self._perform_login(
                     sb,
                     login_url,
@@ -184,7 +183,7 @@ class UdemyScraper:
             courses_count, pages_count = self._get_course_metadata(sb)
             self.logger.info(f"TOTAL COURSES: {courses_count}")
 
-            # Get all course URLs from pagination
+            # Get all course URLs with pagination
             courses_list = self._get_all_course_urls(
                 sb, courses_url, course_grid_selector, pages_count
             )
@@ -212,7 +211,7 @@ class UdemyScraper:
         """Extract course count and pagination info.
 
         Returns:
-            Tuple of (empty course list, course count, page count)
+            Tuple of (course count, page count)
         """
         soup = BeautifulSoup(sb.get_page_source(), "lxml")
         courses_num_details = soup.select("div[class*='pagination-label']")[
@@ -267,22 +266,34 @@ class UdemyScraper:
 
         return courses_list
 
-    def _get_existing_courses(self) -> set:
+    def _get_existing_courses(self) -> dict:
         """Get set of courses that have already been scraped.
 
         Returns:
-            Set of course URLs already in the CSV
+            Dict mapping course URLs to their row numbers in XLSX
         """
-        existing_courses = set()
-        if not self.courses_file.exists():
+        existing_courses = {}
+
+        if not self.courses_xlsx_file.exists():
             return existing_courses
 
-        with open(self.courses_file, "r", newline="", encoding="utf-8") as file:
-            reader = csv.reader(file)
-            next(reader, None)  # Skip header
-            for row in reader:
-                if row:  # Ensure row is not empty
-                    existing_courses.add(row[0])
+        try:
+            wb = load_workbook(self.courses_xlsx_file)
+            ws = wb.active
+
+            # Skip header row and read course URLs from first column with row numbers
+            for idx, row in enumerate(
+                ws.iter_rows(min_row=2, values_only=True), start=2
+            ):
+                if row and row[0]:  # Ensure row is not empty and has URL
+                    existing_courses[row[0]] = idx
+
+            wb.close()
+            self.logger.info(
+                f"LOADED {len(existing_courses)} EXISTING COURSES FROM XLSX"
+            )
+        except Exception as e:
+            self.logger.error(f"ERROR READING XLSX FILE: {e}")
 
         return existing_courses
 
@@ -332,13 +343,17 @@ class UdemyScraper:
         """
         courses_details = {}
 
-        with open(self.courses_file, "a", newline="", encoding="utf-8") as file:
-            writer = csv.writer(file)
+        # Load or create Excel workbook
+        if self.courses_xlsx_file.exists():
+            wb = load_workbook(self.courses_xlsx_file)
+            ws = wb.active
+        else:
+            wb = Workbook()
+            ws = wb.active
+            ws.append(["Course Link", "Course Title", "Course Time"])
 
-            # Write header if file is new
-            if not existing_courses:
-                writer.writerow(["Course Link", "Course Title", "Course Time"])
-
+        processed_count = 0
+        try:
             for index, course_url in enumerate(courses_list, 1):
                 if course_url in existing_courses:
                     self.logger.info(f"SKIPPED COURSE #{index} (EXISTING)")
@@ -380,18 +395,6 @@ class UdemyScraper:
                             )
                             continue
 
-                    # Check if course has video content
-                    # video_length_div = soup.find(
-                    #     "div", class_=re.compile("video-length")
-                    # )
-                    # if not video_length_div:
-                    #     with open(
-                    #         self.ignored_courses_file, "a", encoding="utf-8"
-                    #     ) as ignore_file:
-                    #         ignore_file.write(f"{course_url}\n")
-                    #     self.logger.info(f"IGNORED COURSE #{index} (NON-VIDEO COURSE)")
-                    #     continue
-
                     # Extract course title
                     course_title_element = soup.find("title")
                     course_title = (
@@ -403,80 +406,81 @@ class UdemyScraper:
                     )
 
                     # Extract course duration
-                    course_time_element = soup.find(class_="ud-heading-md")
+                    video_length_div = soup.find(
+                        "div", class_=re.compile("video-length")
+                    )
+                    course_time_element = video_length_div.find(class_="ud-heading-md")
                     course_time = (
                         course_time_element.text.strip()
                         if course_time_element
                         else "N/A"
                     )
 
-                    # Save to CSV and dict
-                    writer.writerow([course_url, course_title, course_time])
+                    # Save to Excel and dict
+                    ws.append([course_url, course_title, course_time])
                     courses_details[course_title] = course_time
+                    processed_count += 1
+
+                    # Save periodically for reliability
+                    if processed_count % self.SAVE_FREQUENCY == 0:
+                        wb.save(self.courses_xlsx_file)
+                        self.logger.info(f"AUTO-SAVED AFTER {processed_count} COURSES")
+
                     self.logger.info(f"PROCESSED COURSE #{index} (NEW)")
 
                 except Exception as e:
-                    self.logger.error(f"Error processing course {course_url}: {str(e)}")
+                    self.logger.error(f"ERROR PROCESSING COURSE {course_url}: {str(e)}")
+        finally:
+            # Always save the workbook
+            wb.save(self.courses_xlsx_file)
+            wb.close()
+            self.logger.info(f"SAVED TO {self.courses_xlsx_file}")
 
         return courses_details
 
-    def format_csv(self) -> None:
+    def format_xlsx(self) -> None:
         """Format course durations from text to minutes."""
-        if not self.courses_file.exists():
-            self.logger.error(f"Input file {self.courses_file} not found")
+        if not self.courses_xlsx_file.exists():
+            self.logger.error(f"INPUT FILE {self.courses_xlsx_file} NOT FOUND")
             return
 
-        with (
-            open(self.courses_file, "r", newline="", encoding="utf-8") as input_file,
-            open(
-                self.formatted_courses_file, "w", newline="", encoding="utf-8"
-            ) as output_file,
-        ):
-            reader = csv.reader(input_file)
-            writer = csv.writer(output_file)
-
-            # Copy and write headers
-            if (headers := next(reader, None)) is None:
-                self.logger.warning("Input file is empty")
-                return
-
-            writer.writerow(headers)
+        try:
+            wb = load_workbook(self.courses_xlsx_file)
+            ws = wb.active
 
             total_minutes = 0
             course_count = 0
 
-            for row in reader:
-                if not row:  # Skip empty rows
+            # Skip header row, iterate with row objects to modify cells
+            for row in ws.iter_rows(min_row=2):
+                if not row[2].value:  # Skip rows without time
                     continue
 
-                if len(row) < 3:  # Ensure row has enough columns
-                    self.logger.warning(f"Skipping malformed row: {row}")
-                    continue
-
-                # Skip rows containing "questions" in any column
-                if any("questions" in column.lower() for column in row):
-                    continue
-
-                # Convert time to minutes
-                time_str = row[2]
+                time_str = str(row[2].value)
                 minutes = self._convert_to_minutes(time_str)
-                row[2] = minutes
-                writer.writerow(row)
+                row[2].value = minutes  # Update the cell with integer minutes
 
                 if minutes > 0:
                     total_minutes += minutes
                     course_count += 1
 
+            # Save the updated workbook
+            wb.save(self.courses_xlsx_file)
+            wb.close()
+
             if course_count > 0:
                 hours = total_minutes / 60
                 self.logger.info(
-                    f"Total course time: {hours:.1f} hours ({total_minutes} minutes)"
+                    f"TOTAL COURSE TIME: {hours:.1f} HOURS ({total_minutes} MINUTES)"
                 )
                 self.logger.info(
-                    f"Average course length: {(total_minutes / course_count):.1f} minutes"
+                    f"AVERAGE COURSE LENGTH: {(total_minutes / course_count):.1f} MINUTES"
                 )
 
             self.logger.info("FORMATTED COURSE DETAILS!")
+
+        except Exception as e:
+            self.logger.error(f"ERROR FORMATTING XLSX: {e}")
 
     def _convert_to_minutes(self, time_str: str) -> int:
         """Convert time string to minutes.
@@ -526,14 +530,14 @@ def main():
         if scraper.login(force=force_login):
             scraper.logger.info("LOGGED IN SUCCESSFULLY!")
             scraper.scrape_courses()  # Scrape courses
-            scraper.format_csv()  # Format CSV for analysis
+            scraper.format_xlsx()  # Format XLSX for analysis
             scraper.logger.info("SCRAPING COMPLETED SUCCESSFULLY!")
         else:
             scraper.logger.error("LOGIN UNSUCCESSFUL!")
             sys.exit(1)
 
     except KeyboardInterrupt:
-        scraper.logger.info("Operation cancelled by user")
+        scraper.logger.info("OPERATION CANCELLED BY USER")
         sys.exit(0)
     except Exception as e:
         scraper.logger.error(f"{e}")
