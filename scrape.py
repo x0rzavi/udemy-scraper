@@ -331,7 +331,7 @@ class UdemyScraper:
         self,
         sb,
         courses_list: List[str],
-        existing_courses: set,
+        existing_courses: dict,
         ignored_courses: set,
         overview_selector: str,
         time_selector: str,
@@ -355,13 +355,11 @@ class UdemyScraper:
         processed_count = 0
         try:
             for index, course_url in enumerate(courses_list, 1):
-                if course_url in existing_courses:
-                    self.logger.info(f"SKIPPED COURSE #{index} (EXISTING)")
-                    continue
-
                 if course_url in ignored_courses:
                     self.logger.info(f"SKIPPED COURSE #{index} (IGNORED - NON-VIDEO)")
                     continue
+
+                is_update = course_url in existing_courses
 
                 try:
                     cache_file = self._get_cache_path(course_url)
@@ -416,8 +414,17 @@ class UdemyScraper:
                         else "N/A"
                     )
 
-                    # Save to Excel and dict
-                    ws.append([course_url, course_title, course_time])
+                    # Save to Excel (update existing or append new)
+                    if is_update:
+                        row_num = existing_courses[course_url]
+                        ws.cell(row=row_num, column=1, value=course_url)
+                        ws.cell(row=row_num, column=2, value=course_title)
+                        ws.cell(row=row_num, column=3, value=course_time)
+                        self.logger.info(f"UPDATED COURSE #{index}")
+                    else:
+                        ws.append([course_url, course_title, course_time])
+                        self.logger.info(f"PROCESSED COURSE #{index} (NEW)")
+
                     courses_details[course_title] = course_time
                     processed_count += 1
 
@@ -425,8 +432,6 @@ class UdemyScraper:
                     if processed_count % self.SAVE_FREQUENCY == 0:
                         wb.save(self.courses_xlsx_file)
                         self.logger.info(f"AUTO-SAVED AFTER {processed_count} COURSES")
-
-                    self.logger.info(f"PROCESSED COURSE #{index} (NEW)")
 
                 except Exception as e:
                     self.logger.error(f"ERROR PROCESSING COURSE {course_url}: {str(e)}")
@@ -454,6 +459,12 @@ class UdemyScraper:
             # Skip header row, iterate with row objects to modify cells
             for row in ws.iter_rows(min_row=2):
                 if not row[2].value:  # Skip rows without time
+                    continue
+
+                # Skip if already formatted (value is already an integer)
+                if isinstance(row[2].value, int):
+                    total_minutes += row[2].value
+                    course_count += 1
                     continue
 
                 time_str = str(row[2].value)
